@@ -1,9 +1,10 @@
 """
 目標：將謄本的特定資訊提取出後，使用表格呈現。
 """
+import numpy as np
 import re, logging
 from collections import OrderedDict
-import pandas
+# import pandas
 from PyPDF2 import PdfReader
 
 # Set logging config.
@@ -14,12 +15,13 @@ logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=DATE_FORMAT)
 # Build container.
 information_dict = OrderedDict()
 
-pdf_reader = PdfReader("example.pdf")
+pdf_reader = PdfReader("example_2.pdf")
 pdf_page_num = len(pdf_reader.pages)
 logging.info("PDF總頁數: " + str(pdf_page_num) + " 頁")
 
 for i in range(1, pdf_page_num+1):
     information_dict[i] = dict()
+    temp_dict = dict()
     
     logging.info("PDF當前讀取頁數: 第 " + str(i) + " 頁")
     # 提取文字
@@ -38,22 +40,27 @@ for i in range(1, pdf_page_num+1):
     # 只儲存有效面積
     if area_index != -1:
         area = page_content[area_index+13:area_index+25].split("平方公尺\n")[0]
-        information_dict[i]["面積"] = float(area)
+        temp_dict["平方公尺"] = float(area)
+        temp_dict["坪"] = np.round(float(area) * 0.3025, 2)
+        information_dict[i]["面積"] = temp_dict
         logging.debug("面積： " + str(area) + " 平方公尺")
 
     # 尋找土地使用分區和使用地類別
     use_kind_index = page_content.find("使用分區：")
-    use_kind_detail_index = page_content.find("使用地類別：")
+    use_kind_detail_index = page_content.find("使用地類別：")
     logging.debug("使用分區位置索引值: " + str(use_kind_index))
+    logging.debug("使用地類別位置索引值: " + str(use_kind_detail_index))
     
     if use_kind_index != -1:
         use_kind = page_content[use_kind_index+5:use_kind_index+10]
-        use_kind_detail = page_content[use_kind_detail_index+5:use_kind_detail_index+10]
         logging.debug("使用分區：" + use_kind)
-        logging.debug("使用分區類別：" + use_kind_detail)
+        information_dict[i]["使用地類別"] = use_kind
 
-        information_dict[i]["使用分區"] = use_kind
-        information_dict[i]["使用分區類別"] = use_kind_detail
+    if use_kind_detail_index != -1:
+        use_kind_detail = page_content[use_kind_detail_index+5:use_kind_detail_index+10]
+        logging.debug("使用地類別：" + use_kind_detail)
+
+        information_dict[i]["使用分區"] = use_kind_detail
     
     # 尋找公告土地現值
     land_value_index = page_content.find("公告土地現值：")
@@ -65,4 +72,6 @@ for i in range(1, pdf_page_num+1):
 
         information_dict[i]["公告土地現值"] = int(''.join(land_value.split(',')))
 
-logging.debug(information_dict[1])
+# logging.debug(information_dict[1])
+for item in information_dict:
+    logging.debug(information_dict[item])
